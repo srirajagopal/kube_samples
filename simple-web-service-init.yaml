@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-web-service-init
+  labels:
+    app: simple-web-service-init
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: simple-web-service-init
+  template:
+    metadata:
+      labels:
+        app: simple-web-service-init
+    spec:
+      initContainers:
+        - name: init-html
+          image: busybox:stable
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "$(date) [init] POD_NAME=${POD_NAME}"
+              cat <<EOF > /workdir/index.html
+              Welcome to nginx ${POD_NAME}
+              EOF
+              echo "$(date) [init] Wrote index.html:"
+              cat /workdir/index.html
+          volumeMounts:
+            - name: html
+              mountPath: /workdir
+      containers:
+        - name: web
+          image: nginx:stable
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: html
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-web-service-init
+  labels:
+    app: simple-web-service-init
+spec:
+  type: LoadBalancer
+  selector:
+    app: simple-web-service-init
+  ports:
+    - name: https
+      port: 443
+      targetPort: http
+      nodePort: 31443
+      protocol: TCP
+
