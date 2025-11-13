@@ -17,6 +17,24 @@ spec:
       containers:
         - name: web
           image: nginx:stable
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "$(date) [startup] POD_NAME=${POD_NAME}"
+              echo "$(date) [startup] Writing custom index page to /usr/share/nginx/html/index.html"
+              echo "Welcome to nginx ${POD_NAME}" > /usr/share/nginx/html/index.html
+              echo "$(date) [startup] Index page contents:"
+              cat /usr/share/nginx/html/index.html
+              echo "$(date) [startup] Directory listing:"
+              ls -l /usr/share/nginx/html/
+              echo "$(date) [startup] Starting nginx"
+              exec nginx -g 'daemon off;'
           ports:
             - name: http
               containerPort: 80
